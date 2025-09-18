@@ -10,8 +10,9 @@ find_package(OpenCV REQUIRED)
 # Find Python and pybind11
 find_package(pybind11 REQUIRED)
 
-# Add executable
+# Add executables
 add_executable(yolo_test test_yolo.cpp)
+add_executable(yolo_test_headless test_yolo_headless.cpp)
 
 # Link libraries
 target_link_libraries(yolo_test 
@@ -19,8 +20,14 @@ target_link_libraries(yolo_test
     pybind11::embed
 )
 
+target_link_libraries(yolo_test_headless 
+    ${OpenCV_LIBS}
+    pybind11::embed
+)
+
 # Include directories
 target_include_directories(yolo_test PRIVATE ${OpenCV_INCLUDE_DIRS})
+target_include_directories(yolo_test_headless PRIVATE ${OpenCV_INCLUDE_DIRS})
 
 # Set Python executable
 set(PYTHON_EXECUTABLE /usr/bin/python3)
