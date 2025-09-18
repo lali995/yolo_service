@@ -1,36 +1,86 @@
 YOLO Service (Python ↔ C++ Bridge)
 
-This module provides a lightweight Python interface for running YOLO inference on images using a TensorRT-optimized engine.
-It is designed to be called from a C++ application (via pybind11 or the Python C API).
+A comprehensive YOLO object detection service that provides both Python and C++ interfaces for running YOLO inference on images and videos using TensorRT-optimized engines. The service supports multiple input formats and provides detailed detection results with bounding boxes and classifications.
 
-Features
+## Project Structure
 
-One-time initialization: load the YOLO TensorRT engine only once.
+- **Python Service** (`yolo_service.py`): Core YOLO service with Python API
+- **C++ Applications**: Three different C++ executables for various use cases
+- **Python Examples**: Standalone and video processing examples
+- **Build System**: CMake configuration for C++ compilation
 
-Fast detection calls: run inference on NumPy arrays (raw frames) or encoded image bytes (e.g., JPEG/PNG).
+## Features
 
-Thread-safe: guarded by a lock around model inference.
+- **One-time initialization**: Load the YOLO TensorRT engine only once
+- **Multiple input formats**: Support for NumPy arrays, encoded image bytes, and RGBA data
+- **Detailed detection results**: Returns bounding boxes, class names, and confidence scores
+- **Thread-safe**: Guarded by locks around model inference
+- **C++ Integration**: Full pybind11 integration for C++ applications
+- **Video processing**: Support for both real-time and batch video processing
+- **Headless operation**: C++ applications can run without GUI dependencies
+- **Graceful shutdown**: Explicitly release model and GPU resources
 
-Minimal JSON output: returns only the number of detected objects and processing time.
+## Installation
 
-Graceful shutdown: explicitly release model and GPU resources.
+### Prerequisites
 
-Installation
+1. **Python Dependencies**:
+   ```bash
+   pip install ultralytics opencv-python numpy
+   ```
 
-Install dependencies:
+2. **System Requirements**:
+   - CUDA drivers installed for your target platform
+   - TensorRT library
+   - OpenCV development libraries
+   - CMake 3.12 or higher
+   - C++17 compatible compiler
 
-pip install ultralytics opencv-python numpy
+3. **YOLO Engine File**:
+   - Generate a TensorRT engine file: `yolo export model=yolov8n.pt format=engine`
+   - Place the `.engine` file in your project directory
 
+### Building C++ Applications
 
-Ensure you have TensorRT and CUDA drivers installed for your target platform.
+1. **Navigate to C++ directory**:
+   ```bash
+   cd c++/
+   ```
 
-Place the file yolo_service.py in your project.
+2. **Create build directory**:
+   ```bash
+   mkdir build && cd build
+   ```
 
-Python API
-from yolo_service import init_engine, detect_image, shutdown, get_last_error
+3. **Configure with CMake**:
+   ```bash
+   cmake ..
+   ```
+
+4. **Build the project**:
+   ```bash
+   make
+   ```
+
+5. **Copy Python service**:
+   ```bash
+   cp ../yolo_service.py .
+   ```
+
+This will create three executables:
+- `yolo_test`: Interactive test with camera/image input
+- `yolo_test_headless`: Batch processing for images/videos
+- `yolo_image_processor`: RGBA image processing with detailed results
+
+## Python API
+
+### Basic Usage
+
+```python
+from yolo_service import init_engine, detect_image, detect_rgba_image, shutdown, get_last_error
 
 # 1. Initialize model once
-ok = init_engine("/root/yolo/yolo11n_fp16.engine", imgsz=640, conf=0.25, device=0)
+ok = init_engine("./yolo11n.engine", imgsz=640, conf=0.25, device=0)
 if not ok:
     print("Init failed:", get_last_error())
     exit(1)
@@ -46,40 +96,175 @@ with open("test.jpg", "rb") as f:
     img_bytes = f.read()
 result_json = detect_image(img_bytes)
 
-# 4. Shutdown when done
+# 4. Run detection on RGBA data with detailed results
+rgba_image = cv2.cvtColor(img, cv2.COLOR_BGR2RGBA)
+rgba_flat = rgba_image.flatten()
+result_json = detect_rgba_image(rgba_flat, rgba_image.shape[1], rgba_image.shape[0])
+print(result_json)   # Detailed results with bounding boxes
+
+# 5. Shutdown when done
 shutdown()
+```
 
-JSON Output Format
+### Available Functions
 
-On success:
+- `init_engine(engine_path, imgsz=640, conf=0.25, device=0, do_warmup=True)`: Initialize the YOLO model
+- `detect_image(image)`: Basic detection returning count and timing
+- `detect_rgba_image(rgba_data, width, height)`: Detailed detection with bounding boxes
+- `get_last_error()`: Get the last error message
+- `shutdown()`: Clean up resources
 
+## JSON Output Format
+
+### Basic Detection (`detect_image`)
+
+**On success:**
+```json
 {
   "ok": true,
   "count": 3,
   "time_ms": 7.532
 }
+```
 
-
-On error:
-
+**On error:**
+```json
 {
   "ok": false,
   "error": "model_not_initialized"
 }
+```
 
-C++ Integration (via pybind11)
+### Detailed Detection (`detect_rgba_image`)
 
-Example wrapper class:
+**On success:**
+```json
+{
+  "ok": true,
+  "count": 2,
+  "time_ms": 8.245,
+  "detections": [
+    {
+      "class_id": 0,
+      "class_name": "person",
+      "confidence": 0.856,
+      "bbox": {
+        "x1": 100.5,
+        "y1": 50.2,
+        "x2": 200.8,
+        "y2": 300.1,
+        "width": 100.3,
+        "height": 249.9
+      }
+    },
+    {
+      "class_id": 2,
+      "class_name": "car",
+      "confidence": 0.734,
+      "bbox": {
+        "x1": 300.0,
+        "y1": 150.0,
+        "x2": 500.0,
+        "y2": 400.0,
+        "width": 200.0,
+        "height": 250.0
+      }
+    }
+  ]
+}
+```
 
+## C++ Applications
+
+The project includes three C++ executables, each designed for different use cases:
+
+### 1. Interactive Test (`yolo_test`)
+
+**Purpose**: Interactive testing with camera or image input
+**Usage**: `./yolo_test`
+
+```cpp
+// Basic usage example
+YoloService yolo;
+yolo.init("./yolo11n.engine", 640, 0.25, 0);
+
+cv::Mat frame = cv::imread("test.jpg");
+std::string result = yolo.detect_cv_image(frame);
+std::cout << "Detection result: " << result << std::endl;
+```
+
+**Features**:
+- Real-time camera input
+- Image file processing
+- Interactive controls (press 'q' to quit, 's' to save frame)
+- Performance timing
+
+### 2. Headless Batch Processor (`yolo_test_headless`)
+
+**Purpose**: Batch processing of images and videos without GUI
+**Usage**: 
+```bash
+./yolo_test_headless <input_path> [output_dir] [save_annotated] [max_frames]
+```
+
+**Examples**:
+```bash
+# Process single image
+./yolo_test_headless image.jpg output true
+
+# Process video with frame limit
+./yolo_test_headless video.mp4 output true 100
+
+# Process all frames in video
+./yolo_test_headless video.mp4 output false
+```
+
+**Features**:
+- Batch image processing
+- Video processing with progress tracking
+- Optional annotated frame saving
+- Frame count limiting
+- Performance statistics
+
+### 3. RGBA Image Processor (`yolo_image_processor`)
+
+**Purpose**: Advanced image processing with detailed detection results
+**Usage**: 
+```bash
+./yolo_image_processor <input_image> <output_image> [engine_path] [output_dir]
+```
+
+**Example**:
+```bash
+./yolo_image_processor input.jpg result.jpg ./yolo11n.engine output
+```
+
+**Features**:
+- RGBA image support
+- Detailed bounding box results
+- JSON output for debugging
+- Automatic image format conversion
+- Comprehensive detection data
+
+### C++ Integration (via pybind11)
+
+**Basic wrapper class**:
+
+```cpp
 #include <pybind11/embed.h>
 #include <pybind11/numpy.h>
+#include <opencv2/opencv.hpp>
 #include <string>
+
 namespace py = pybind11;
 
-struct YoloService {
+class YoloService {
+private:
     py::scoped_interpreter guard{};
     py::object mod, init_fn, detect_fn, shutdown_fn, err_fn;
+    bool initialized = false;
 
+public:
     YoloService() {
         mod = py::module_::import("yolo_service");
         init_fn = mod.attr("init_engine");
@@ -88,37 +273,105 @@ struct YoloService {
         err_fn = mod.attr("get_last_error");
     }
 
-    bool init(const std::string& engine) {
-        return init_fn(engine, 640, 0.25, 0).cast<bool>();
+    bool init(const std::string& engine, int imgsz = 640, float conf = 0.25, int device = 0) {
+        bool result = init_fn(engine, imgsz, conf, device, true).cast<bool>();
+        initialized = result;
+        return result;
     }
 
-    std::string detect(uint8_t* data, int h, int w, int stride_bytes) {
-        ssize_t shape[3] = {h, w, 3};
-        ssize_t strides[3] = {stride_bytes, 3, 1};
-        py::capsule free_when_done(nullptr, [](void*){});
-        py::array_t<uint8_t> arr({shape[0], shape[1], shape[2]}, strides, data, free_when_done);
+    std::string detect_cv_image(cv::Mat& image) {
+        if (!initialized) {
+            return R"({"ok": false, "error": "not_initialized"})";
+        }
+        
+        py::array_t<uint8_t> arr(
+            {image.rows, image.cols, image.channels()},
+            image.data
+        );
+        
         return detect_fn(arr).cast<std::string>();
     }
 
-    void shutdown() { shutdown_fn(); }
-
-    std::string last_error() { return err_fn().cast<std::string>(); }
+    void shutdown() {
+        if (initialized) {
+            shutdown_fn();
+            initialized = false;
+        }
+    }
 };
+```
 
-Typical Flow (C++ or Python)
+## Python Examples
 
-Call init_engine() once at startup.
+### 1. Standalone Image Processing (`run_yolo_standalone.py`)
 
-Repeatedly call detect_image() with images.
+**Purpose**: Complete image processing workflow with RGBA support
+**Usage**: `python run_yolo_standalone.py`
 
-When finished, call shutdown().
+**Features**:
+- Load and convert images to RGBA
+- Run YOLO detection with detailed results
+- Render bounding boxes on images
+- Save annotated results and JSON data
 
-Notes
+### 2. Video Processing (`run_yolo_video.py`)
 
-Only NumPy arrays (HxWx3 uint8, BGR) or encoded image bytes are accepted.
+**Purpose**: Real-time video processing with GUI controls
+**Usage**: `python run_yolo_video.py`
 
-Engine must be compiled with TensorRT (e.g., yolo export model=yolov8n.pt format=engine).
+**Features**:
+- Video file processing
+- Real-time FPS display
+- Interactive controls (pause, restart, save frames)
+- Headless mode support
+- Progress tracking
 
-For multi-threaded use: Python GIL + internal lock ensures safety but serializes inference. For parallelism, consider multiple processes each with its own model.
+### 3. Example Usage (`example_usage.py`)
 
-Do you want me to also add a section about running it as a microservice (FastAPI/Flask) so your C++ could just send HTTP requests instead of embedding Python?
+**Purpose**: Demonstrates complete workflow with RGBA detection
+**Usage**: `python example_usage.py`
+
+**Features**:
+- Step-by-step image processing
+- RGBA conversion and detection
+- Bounding box rendering
+- JSON result saving
+
+## Typical Usage Flow
+
+### Python
+1. Call `init_engine()` once at startup
+2. Repeatedly call `detect_image()` or `detect_rgba_image()` with images
+3. Parse JSON results for detection data
+4. Call `shutdown()` when finished
+
+### C++
+1. Initialize `YoloService` object
+2. Call `init()` method with engine path
+3. Repeatedly call `detect_cv_image()` with OpenCV Mat objects
+4. Parse JSON results
+5. Call `shutdown()` when finished
+
+## Important Notes
+
+- **Input Formats**: Supports NumPy arrays (HxWx3 uint8, BGR), encoded image bytes, and RGBA data
+- **Engine Requirements**: Must be compiled with TensorRT (e.g., `yolo export model=yolov8n.pt format=engine`)
+- **Thread Safety**: Python GIL + internal lock ensures safety but serializes inference
+- **Performance**: For parallelism, consider multiple processes each with its own model
+- **Memory Management**: Always call `shutdown()` to properly release GPU resources
+
+## Troubleshooting
+
+### Common Issues
+
+1. **"model_not_initialized" error**: Ensure `init_engine()` was called successfully
+2. **CUDA/TensorRT errors**: Verify CUDA drivers and TensorRT installation
+3. **Import errors**: Ensure all Python dependencies are installed
+4. **Build errors**: Check CMake configuration and compiler compatibility
+
+### Performance Tips
+
+- Use TensorRT engines for optimal performance
+- Consider batch processing for multiple images
+- Monitor GPU memory usage during processing
+- Use appropriate confidence thresholds for your use case
