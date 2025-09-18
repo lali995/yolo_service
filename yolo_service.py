@@ -4,11 +4,24 @@ from __future__ import annotations
 import json
 import threading
 import time
-from typing import Optional, Union
+from typing import Optional, Union, List, Dict, Any
 
 import cv2
 import numpy as np
 from ultralytics import YOLO
+
+# COCO class names for YOLO
+COCO_CLASSES = [
+    'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
+    'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
+    'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee',
+    'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard',
+    'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple',
+    'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch',
+    'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone',
+    'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear',
+    'hair drier', 'toothbrush'
+]
 
 # -----------------------------
 # Module-level state
@@ -115,6 +128,150 @@ def detect_image(image: Union[np.ndarray, bytes, bytearray, memoryview]) -> str:
 
     except Exception as e:
         _last_error = f"detect_image failed: {e}"
+        return json.dumps({"ok": False, "error": _last_error})
+
+
+def _rgba_to_bgr(rgba_data: Union[np.ndarray, bytes, bytearray, memoryview], width: int, height: int) -> np.ndarray:
+    """
+    Convert RGBA data to BGR format for YOLO processing.
+    
+    Args:
+        rgba_data: Raw RGBA data as bytes or numpy array
+        width: Image width
+        height: Image height
+    
+    Returns:
+        BGR numpy array (HxWx3 uint8)
+    """
+    if isinstance(rgba_data, (bytes, bytearray, memoryview)):
+        # Convert bytes to numpy array
+        rgba_array = np.frombuffer(rgba_data, dtype=np.uint8)
+        rgba_array = rgba_array.reshape((height, width, 4))
+    elif isinstance(rgba_data, np.ndarray):
+        rgba_array = rgba_data.reshape((height, width, 4))
+    else:
+        raise TypeError("rgba_data must be bytes, bytearray, memoryview, or numpy array")
+    
+    # Convert RGBA to BGR (OpenCV format)
+    bgr_array = cv2.cvtColor(rgba_array, cv2.COLOR_RGBA2BGR)
+    return np.ascontiguousarray(bgr_array)
+
+
+def _extract_detection_data(result) -> List[Dict[str, Any]]:
+    """
+    Extract detection data from YOLO result.
+    
+    Args:
+        result: YOLO detection result
+    
+    Returns:
+        List of detection dictionaries with bounding boxes and classifications
+    """
+    detections = []
+    
+    if result.boxes is None or len(result.boxes) == 0:
+        return detections
+    
+    boxes = result.boxes
+    for i in range(len(boxes)):
+        # Get bounding box coordinates (xyxy format)
+        box = boxes.xyxy[i].cpu().numpy()
+        x1, y1, x2, y2 = box
+        
+        # Get confidence score
+        conf = float(boxes.conf[i].cpu().numpy())
+        
+        # Get class ID and name
+        cls_id = int(boxes.cls[i].cpu().numpy())
+        cls_name = COCO_CLASSES[cls_id] if cls_id < len(COCO_CLASSES) else f"class_{cls_id}"
+        
+        detection = {
+            "class_id": cls_id,
+            "class_name": cls_name,
+            "confidence": round(conf, 3),
+            "bbox": {
+                "x1": round(float(x1), 2),
+                "y1": round(float(y1), 2),
+                "x2": round(float(x2), 2),
+                "y2": round(float(y2), 2),
+                "width": round(float(x2 - x1), 2),
+                "height": round(float(y2 - y1), 2)
+            }
+        }
+        detections.append(detection)
+    
+    return detections
+
+
+def detect_rgba_image(
+    rgba_data: Union[np.ndarray, bytes, bytearray, memoryview], 
+    width: int, 
+    height: int
+) -> str:
+    """
+    Run detection on raw RGBA image data.
+    
+    Args:
+        rgba_data: Raw RGBA image data
+        width: Image width
+        height: Image height
+    
+    Returns:
+        JSON string with detection results:
+        {
+            "ok": true,
+            "count": <int>,
+            "time_ms": <float>,
+            "detections": [
+                {
+                    "class_id": <int>,
+                    "class_name": <str>,
+                    "confidence": <float>,
+                    "bbox": {
+                        "x1": <float>, "y1": <float>, "x2": <float>, "y2": <float>,
+                        "width": <float>, "height": <float>
+                    }
+                }
+            ]
+        }
+    """
+    global _last_error
+
+    if _model is None:
+        return json.dumps({"ok": False, "error": "model_not_initialized"})
+
+    try:
+        # Convert RGBA to BGR
+        frame = _rgba_to_bgr(rgba_data, width, height)
+        
+        # Run detection
+        t0 = time.time()
+        with _lock:
+            res = _model.predict(
+                source=frame,
+                imgsz=_cfg["imgsz"],
+                conf=_cfg["conf"],
+                device=_cfg["device"],
+                verbose=False,
+            )[0]
+        t1 = time.time()
+
+        # Extract detection data
+        detections = _extract_detection_data(res)
+        count = len(detections)
+
+        return json.dumps(
+            {
+                "ok": True,
+                "count": count,
+                "time_ms": round((t1 - t0) * 1000.0, 3),
+                "detections": detections
+            },
+            indent=2
+        )
+
+    except Exception as e:
+        _last_error = f"detect_rgba_image failed: {e}"
         return json.dumps({"ok": False, "error": _last_error})
 
 
