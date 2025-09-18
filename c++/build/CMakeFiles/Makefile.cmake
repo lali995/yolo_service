@@ -131,5 +131,7 @@ set(CMAKE_MAKEFILE_PRODUCTS
 
 # Dependency information for all targets:
 set(CMAKE_DEPEND_INFO_FILES
+  "CMakeFiles/yolo_image_processor.dir/DependInfo.cmake"
+  "CMakeFiles/yolo_test_headless.dir/DependInfo.cmake"
   "CMakeFiles/yolo_test.dir/DependInfo.cmake"
   )

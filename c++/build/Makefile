@@ -111,6 +111,32 @@ depend:
 .PHONY : depend
 
 #=============================================================================
+# Target rules for targets named yolo_image_processor
+
+# Build rule for target.
+yolo_image_processor: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 yolo_image_processor
+.PHONY : yolo_image_processor
+
+# fast build rule for target.
+yolo_image_processor/fast:
+	$(MAKE) -f CMakeFiles/yolo_image_processor.dir/build.make CMakeFiles/yolo_image_processor.dir/build
+.PHONY : yolo_image_processor/fast
+
+#=============================================================================
+# Target rules for targets named yolo_test_headless
+
+# Build rule for target.
+yolo_test_headless: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 yolo_test_headless
+.PHONY : yolo_test_headless
+
+# fast build rule for target.
+yolo_test_headless/fast:
+	$(MAKE) -f CMakeFiles/yolo_test_headless.dir/build.make CMakeFiles/yolo_test_headless.dir/build
+.PHONY : yolo_test_headless/fast
+
+#=============================================================================
 # Target rules for targets named yolo_test
 
 # Build rule for target.
@@ -150,6 +176,60 @@ test_yolo.cpp.s:
 	$(MAKE) -f CMakeFiles/yolo_test.dir/build.make CMakeFiles/yolo_test.dir/test_yolo.cpp.s
 .PHONY : test_yolo.cpp.s
 
+test_yolo_headless.o: test_yolo_headless.cpp.o
+
+.PHONY : test_yolo_headless.o
+
+# target to build an object file
+test_yolo_headless.cpp.o:
+	$(MAKE) -f CMakeFiles/yolo_test_headless.dir/build.make CMakeFiles/yolo_test_headless.dir/test_yolo_headless.cpp.o
+.PHONY : test_yolo_headless.cpp.o
+
+test_yolo_headless.i: test_yolo_headless.cpp.i
+
+.PHONY : test_yolo_headless.i
+
+# target to preprocess a source file
+test_yolo_headless.cpp.i:
+	$(MAKE) -f CMakeFiles/yolo_test_headless.dir/build.make CMakeFiles/yolo_test_headless.dir/test_yolo_headless.cpp.i
+.PHONY : test_yolo_headless.cpp.i
+
+test_yolo_headless.s: test_yolo_headless.cpp.s
+
+.PHONY : test_yolo_headless.s
+
+# target to generate assembly for a file
+test_yolo_headless.cpp.s:
+	$(MAKE) -f CMakeFiles/yolo_test_headless.dir/build.make CMakeFiles/yolo_test_headless.dir/test_yolo_headless.cpp.s
+.PHONY : test_yolo_headless.cpp.s
+
+yolo_image_processor.o: yolo_image_processor.cpp.o
+
+.PHONY : yolo_image_processor.o
+
+# target to build an object file
+yolo_image_processor.cpp.o:
+	$(MAKE) -f CMakeFiles/yolo_image_processor.dir/build.make CMakeFiles/yolo_image_processor.dir/yolo_image_processor.cpp.o
+.PHONY : yolo_image_processor.cpp.o
+
+yolo_image_processor.i: yolo_image_processor.cpp.i
+
+.PHONY : yolo_image_processor.i
+
+# target to preprocess a source file
+yolo_image_processor.cpp.i:
+	$(MAKE) -f CMakeFiles/yolo_image_processor.dir/build.make CMakeFiles/yolo_image_processor.dir/yolo_image_processor.cpp.i
+.PHONY : yolo_image_processor.cpp.i
+
+yolo_image_processor.s: yolo_image_processor.cpp.s
+
+.PHONY : yolo_image_processor.s
+
+# target to generate assembly for a file
+yolo_image_processor.cpp.s:
+	$(MAKE) -f CMakeFiles/yolo_image_processor.dir/build.make CMakeFiles/yolo_image_processor.dir/yolo_image_processor.cpp.s
+.PHONY : yolo_image_processor.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -158,10 +238,18 @@ help:
 	@echo "... depend"
 	@echo "... rebuild_cache"
 	@echo "... edit_cache"
+	@echo "... yolo_image_processor"
+	@echo "... yolo_test_headless"
 	@echo "... yolo_test"
 	@echo "... test_yolo.o"
 	@echo "... test_yolo.i"
 	@echo "... test_yolo.s"
+	@echo "... test_yolo_headless.o"
+	@echo "... test_yolo_headless.i"
+	@echo "... test_yolo_headless.s"
+	@echo "... yolo_image_processor.o"
+	@echo "... yolo_image_processor.i"
+	@echo "... yolo_image_processor.s"
 .PHONY : help
 
 

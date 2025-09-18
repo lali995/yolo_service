@@ -1,0 +1,27 @@
+version: '3'
+services:
+  yolo-api:
+    build:
+      context: ./yolo-api  # Path to the YOLO API directory
+    ports:
+      - "5000:5000"
+    networks:
+      - yolo-network
+    volumes:
+      - ./yolo-api:/app  # Mount the local yolo-api directory inside the container
+
+  test-caller:
+    build:
+      context: ./test-caller  # Path to the test-caller directory
+    depends_on:
+      - yolo-api
+    networks:
+      - yolo-network
+    volumes:
+      - ./test-caller:/app  # Mount the local test-caller directory inside the container
+    command: ./test_caller /app/test_image.png  # Replace with your image/video path
+
+networks:
+  yolo-network:
+    driver: bridge
+
