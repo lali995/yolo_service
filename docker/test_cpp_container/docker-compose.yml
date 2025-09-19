@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  yolo-cpp-test:
+    build:
+      context: ../../
+      dockerfile: docker/test_cpp_container/Dockerfile
+    container_name: yolo_cpp_test
+    volumes:
+      # Mount input directory for test images/videos
+      - ./input:/app/input:ro
+      # Mount output directory for results
+      - ./output:/app/output
+      # Mount a test engine file (if available)
+      - ../../yolo11n.engine:/app/yolo11n.engine:ro
+    environment:
+      - PYTHONPATH=/app
+    working_dir: /app
+    # Override the default command to allow custom arguments
+    command: ["/app/yolo_test_headless", "/app/input/test_image.jpg", "/app/output", "false", "-1"]
+    # Uncomment the following lines if you need GPU support
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    # environment:
+    #   - NVIDIA_VISIBLE_DEVICES=all
+    #   - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+  # Alternative service for video processing
+  yolo-cpp-video:
+    build:
+      context: ../../
+      dockerfile: docker/test_cpp_container/Dockerfile
+    container_name: yolo_cpp_video
+    volumes:
+      - ./input:/app/input:ro
+      - ./output:/app/output
+      - ../../yolo11n.engine:/app/yolo11n.engine:ro
+    environment:
+      - PYTHONPATH=/app
+    working_dir: /app
+    command: ["/app/yolo_test_headless", "/app/input/test_video.mp4", "/app/output", "true", "100"]
+    profiles:
+      - video
