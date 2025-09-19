@@ -1,3 +1,5 @@
 /root/yolo/yolo_service/c++/build/CMakeFiles/rebuild_cache.dir
 /root/yolo/yolo_service/c++/build/CMakeFiles/edit_cache.dir
+/root/yolo/yolo_service/c++/build/CMakeFiles/yolo_image_processor.dir
+/root/yolo/yolo_service/c++/build/CMakeFiles/yolo_test_headless.dir
 /root/yolo/yolo_service/c++/build/CMakeFiles/yolo_test.dir
